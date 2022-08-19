@@ -1,12 +1,22 @@
 package impl
 
-type FileUseCase struct {
+import (
+	"OnlyPDF/app/repositories"
+	"gopkg.in/telebot.v3"
+)
+
+type FileUseCaseImpl struct {
+	filesRepo repositories.FilesRepositories
 }
 
-func CreateFileUseCase() FileUseCase {
-	return FileUseCase{}
+func CreateFileUseCase(repo repositories.FilesRepositories) *FileUseCaseImpl {
+	return &FileUseCaseImpl{filesRepo: repo}
 }
 
-func (f *FileUseCase) Merge([][]byte) []byte {
-	return []byte("0")
+func (impl *FileUseCaseImpl) AddFile(file telebot.File) error {
+	err := impl.filesRepo.Add()
+	if err != nil {
+		return err
+	}
+	return nil
 }

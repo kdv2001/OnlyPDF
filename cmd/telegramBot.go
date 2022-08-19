@@ -2,8 +2,12 @@ package main
 
 import (
 	"OnlyPDF/app/handlers"
+	"OnlyPDF/app/repositories/postgress"
 	"OnlyPDF/app/usecase/impl"
 	"fmt"
+	//_ "github.com/jackc/pgx/stdlib"
+	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jmoiron/sqlx"
 	"gopkg.in/telebot.v3"
 	"os"
 	"time"
@@ -13,10 +17,18 @@ type OnlyPDFBot struct {
 	handler *handlers.Handlers
 }
 
-func CreateOnlyPDFBot() *OnlyPDFBot {
-	fileUseCase := impl.CreateFileUseCase()
-	handler := handlers.CreateHandlers(&fileUseCase)
-	return &OnlyPDFBot{&handler}
+func CreateOnlyPDFBot() (OnlyPDFBot, error) {
+	conn, err := sqlx.Open("pgx", "")
+	if err != nil {
+		return OnlyPDFBot{}, err
+	}
+	repo, err := postgress.CreateFilesPostgres(conn)
+	if err != nil {
+		return OnlyPDFBot{}, err
+	}
+	fileUseCase := impl.CreateFileUseCase(repo)
+	handler := handlers.CreateHandlers(fileUseCase)
+	return OnlyPDFBot{handler}, nil
 }
 
 func (b *OnlyPDFBot) StartListenAndServ() {
@@ -26,22 +38,19 @@ func (b *OnlyPDFBot) StartListenAndServ() {
 		return
 	}
 	//bot.Use(middleware.Logger())
-	bot.Handle(telebot.OnDocument, func(ctx telebot.Context) error {
-		fmt.Println(ctx.Message().Document.FileID)
-		fmt.Println(ctx.Message().ID)
-		return nil
-	})
+	//bot.Handle(telebot.OnDocument, func(ctx telebot.Context) error {
+	//	fmt.Println(ctx.Message().Document.FileID)
+	//	fmt.Println(ctx.Message().ID)
+	//	return nil
+	//})
 
-	bot.Handle("/m", b.handler.AddFiles)
-	bot.Handle("/t", func(m telebot.Context) error {
-		//document := &telebot.Document{File: telebot.FromDisk("api2.png"), FileName: "Фото.png"}
-		//msg := telebot.Message{ID: m.Message().ID - 1}
-		file, err := bot.FileByID(bot.)
+	bot.Handle(telebot.OnDocument, b.handler.AddFiles)
+	bot.Handle("/t", b.handler.ShowFiles)
+	bot.Handle("/merge", func(ctx telebot.Context) error {
+		err := b.handler.Merge(ctx, bot)
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
-		bot.Download(&file, m.Message().Sender.Username)
-		fmt.Println(file.FileID)
 		return nil
 	})
 
