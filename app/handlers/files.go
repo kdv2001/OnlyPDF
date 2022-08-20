@@ -3,7 +3,6 @@ package handlers
 import (
 	"OnlyPDF/app/usecase"
 	"fmt"
-	"github.com/unidoc/unipdf/v3/model"
 	"gopkg.in/telebot.v3"
 	"os"
 	"strconv"
@@ -23,83 +22,90 @@ func CreateHandlers(useCase usecase.FilesUseCases) *Handlers {
 func (h *Handlers) AddFiles(ctx telebot.Context) error {
 	document := ctx.Message().Document
 	user := ctx.Message().Sender.Username
-	fmt.Println(document.MIME)
 	if !strings.Contains(document.MIME, "pdf") {
-		ctx.Send("bad file")
-		return telebot.ErrWrongFileID
+		ctx.Send("Не поддерживаемый формат файла.")
+		return telebot.NewError(404, "Bad request: not not supported")
 	}
-	err := h.useCase.AddFile(document.File)
+	err := h.useCase.AddFile(user, *document)
 	if err != nil {
-		return telebot.ErrWrongFileID
+		ctx.Send("Не удалось добавить файл.")
+		return err
 	}
-	h.mock[user] = append(h.mock[user], document.FileID)
+	ctx.Send("Файл добавлен.")
 	return nil
 }
 
 func (h *Handlers) Merge(ctx telebot.Context, bot *telebot.Bot) error {
-	user := ctx.Message().Sender.Username
-	writer := model.NewPdfWriter()
-	var fileNames []string
-	filesId := h.mock[user]
-	if len(filesId) <= 1 {
-		ctx.Send("files not found")
+	user := ctx.Message().Sender
+	files, err := h.useCase.GetFilesIds(user.Username)
+	if err == telebot.ErrNotFound {
+		ctx.Send("Файлы в очереди отсутствуют.")
+		return err
+	}
+	if err != nil {
+		ctx.Send("Не удалось получить список файлов.")
+		return err
+	}
+	if len(files) <= 1 {
+		ctx.Send("Недостаточно файлов.")
 		return nil
 	}
-	for idx, val := range filesId {
-		fileName := user + "_" + strconv.Itoa(idx)
+	err = os.Mkdir(user.Username, 0777)
+	if err != nil {
+		ctx.Send("Не могу объединить файлы.")
+		return telebot.ErrInternal
+	}
+	defer os.RemoveAll("./" + user.Username + "/")
+	fmt.Println("/" + user.Username)
+	var fileNames []string
+	for idx, val := range files {
+		fileName := user.Username + "/" + strconv.Itoa(idx)
 		fileNames = append(fileNames, fileName)
 		document := telebot.File{FileID: val}
-
-		err := bot.Download(&document, fileName)
+		err = bot.Download(&document, fileName)
 		if err != nil {
-			return telebot.ErrWrongFileID
+			ctx.Send("Не могу объединить файлы.")
+			return err
 		}
-		reader, _, err := model.NewPdfReaderFromFile(fileName, nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-		for _, page := range reader.PageList {
-			writer.AddPage(page)
-		}
-		os.Remove(fileName)
 	}
-	resultName := user + "_result.pdf"
-	err := writer.WriteToFile(resultName)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	if err != nil {
-		return telebot.ErrNotStartedByUser
-	}
+	resultName, err := h.useCase.MergeFiles(user.Username, fileNames)
 	file := &telebot.Document{FileName: resultName, File: telebot.FromDisk(resultName), MIME: "pdf"}
 	_, err = bot.Send(ctx.Recipient(), file)
 	if err != nil {
-		fmt.Println(err)
+		ctx.Send("Не могу объединить файлы.")
+		return err
 	}
-	h.mock[user] = []string{}
-	os.Remove(resultName)
+	h.useCase.ClearFiles(user.Username)
+	err = os.Remove(resultName)
+	if err != nil {
+		ctx.Send("Не могу объединить файлы.")
+		return telebot.ErrInternal
+	}
 	return nil
 }
 
 func (h *Handlers) ShowFiles(ctx telebot.Context) error {
 	user := ctx.Message().Sender.Username
-	files, findFlag := h.mock[user]
-	if !findFlag {
-		ctx.Send("files not found")
-		return nil
+	filenames, err := h.useCase.GetFilesNames(user)
+	if err == telebot.ErrNotFound {
+		ctx.Send("Файлы в очереди отсутствуют.")
+		return err
 	}
-	if len(files) == 0 {
-		ctx.Send("files not found")
-		return nil
+	if err != nil {
+		ctx.Send("Не могу отобразить файлы.")
+		return err
 	}
-	ctx.Send(strings.Join(files, "/n"))
+	ctx.Send(filenames)
 	return nil
 }
 
 func (h *Handlers) ClearFiles(ctx telebot.Context) error {
 	user := ctx.Message().Sender.Username
-	h.mock[user] = []string{}
-	ctx.Send("files was clear")
+	err := h.useCase.ClearFiles(user)
+	if err != nil {
+		ctx.Send("Не могу очистить файлы.")
+		return err
+	}
+	ctx.Send("Очередь очищена.")
 	return nil
 }

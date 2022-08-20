@@ -2,12 +2,10 @@ package main
 
 import (
 	"OnlyPDF/app/handlers"
-	"OnlyPDF/app/repositories/postgress"
+	"OnlyPDF/app/repositories/memory"
 	"OnlyPDF/app/usecase/impl"
 	"fmt"
-	//_ "github.com/jackc/pgx/stdlib"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/jmoiron/sqlx"
 	"gopkg.in/telebot.v3"
 	"os"
 	"time"
@@ -18,11 +16,7 @@ type OnlyPDFBot struct {
 }
 
 func CreateOnlyPDFBot() (OnlyPDFBot, error) {
-	conn, err := sqlx.Open("pgx", "")
-	if err != nil {
-		return OnlyPDFBot{}, err
-	}
-	repo, err := postgress.CreateFilesPostgres(conn)
+	repo, err := memory.CreateFilesPostgresInMemory()
 	if err != nil {
 		return OnlyPDFBot{}, err
 	}
@@ -39,10 +33,10 @@ func (b *OnlyPDFBot) StartListenAndServ() {
 	}
 	//bot.Use(middleware.Logger())
 	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
-	btnPrint := menu.Text("Print")
-	btnMerge := menu.Text("Merge")
-	btnClear := menu.Text("Clear")
-	btnHelp := menu.Text("Help")
+	btnPrint := menu.Text("🖨Print")
+	btnMerge := menu.Text("💾Merge")
+	btnClear := menu.Text("🧫Clear")
+	btnHelp := menu.Text("🆘Help")
 
 	menu.Reply(
 		menu.Row(btnPrint),
@@ -57,7 +51,7 @@ func (b *OnlyPDFBot) StartListenAndServ() {
 	})
 	bot.Handle(&btnHelp, func(ctx telebot.Context) error {
 		msg := "Как оно работает? Каждый отправленный пдф файл в чат с ботом добавляется в очередь," +
-			" затем вся очередь объединяется снизу вверх.\n" +
+			" затем вся очередь объединяется c верху вниз.\n" +
 			"merge - объединение файлов \n" +
 			"print - отображение загруженных файлов(пока что теграм айди файлов)\n" +
 			"clear - очистка загруженных файлов в очередью \n"
