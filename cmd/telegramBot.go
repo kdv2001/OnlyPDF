@@ -38,15 +38,35 @@ func (b *OnlyPDFBot) StartListenAndServ() {
 		return
 	}
 	//bot.Use(middleware.Logger())
-	//bot.Handle(telebot.OnDocument, func(ctx telebot.Context) error {
-	//	fmt.Println(ctx.Message().Document.FileID)
-	//	fmt.Println(ctx.Message().ID)
-	//	return nil
-	//})
+	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
+	btnPrint := menu.Text("Print")
+	btnMerge := menu.Text("Merge")
+	btnClear := menu.Text("Clear")
+	btnHelp := menu.Text("Help")
+
+	menu.Reply(
+		menu.Row(btnPrint),
+		menu.Row(btnMerge),
+		menu.Row(btnClear),
+		menu.Row(btnHelp),
+	)
 
 	bot.Handle(telebot.OnDocument, b.handler.AddFiles)
-	bot.Handle("/t", b.handler.ShowFiles)
-	bot.Handle("/merge", func(ctx telebot.Context) error {
+	bot.Handle("/start", func(ctx telebot.Context) error {
+		return ctx.Send("Hello!", menu)
+	})
+	bot.Handle(&btnHelp, func(ctx telebot.Context) error {
+		msg := "Как оно работает? Каждый отправленный пдф файл в чат с ботом добавляется в очередь," +
+			" затем вся очередь объединяется снизу вверх.\n" +
+			"merge - объединение файлов \n" +
+			"print - отображение загруженных файлов(пока что теграм айди файлов)\n" +
+			"clear - очистка загруженных файлов в очередью \n"
+
+		return ctx.Send(msg, menu)
+	})
+	bot.Handle(&btnPrint, b.handler.ShowFiles)
+	bot.Handle(&btnClear, b.handler.ClearFiles)
+	bot.Handle(&btnMerge, func(ctx telebot.Context) error {
 		err := b.handler.Merge(ctx, bot)
 		if err != nil {
 			return err

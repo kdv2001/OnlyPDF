@@ -5,6 +5,8 @@ go 1.19
 require (
 	github.com/jackc/pgx/v4 v4.17.0
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/phpdave11/gofpdf v1.4.2
+	github.com/signintech/gopdf v0.14.1
 	github.com/unidoc/unipdf/v3 v3.37.0
 	gopkg.in/telebot.v3 v3.0.0
 )
@@ -19,6 +21,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.12.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/phpdave11/gofpdi v1.0.13 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.5.0 // indirect
