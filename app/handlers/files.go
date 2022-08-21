@@ -88,14 +88,14 @@ func (h *Handlers) ShowFiles(ctx telebot.Context) error {
 	user := ctx.Message().Sender.Username
 	filenames, err := h.useCase.GetFilesNames(user)
 	if err == telebot.ErrNotFound {
-		ctx.Send("Файлы в очереди отсутствуют.")
+		ctx.Send("Файлы в текущей очереди отсутствуют.")
 		return err
 	}
 	if err != nil {
 		ctx.Send("Не могу отобразить файлы.")
 		return err
 	}
-	ctx.Send(filenames)
+	ctx.Send("Текущая очередь:\n" + filenames)
 	return nil
 }
 
@@ -106,6 +106,6 @@ func (h *Handlers) ClearFiles(ctx telebot.Context) error {
 		ctx.Send("Не могу очистить файлы.")
 		return err
 	}
-	ctx.Send("Очередь очищена.")
+	ctx.Send("Текущая очередь очищена.")
 	return nil
 }
