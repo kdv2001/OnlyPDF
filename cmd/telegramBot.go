@@ -5,7 +5,6 @@ import (
 	"OnlyPDF/app/repositories/memory"
 	"OnlyPDF/app/usecase/impl"
 	"fmt"
-	_ "github.com/jackc/pgx/v4/stdlib"
 	"gopkg.in/telebot.v3"
 	"os"
 	"time"
