@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 type Handlers struct {
@@ -22,9 +24,10 @@ func CreateHandlers(useCase usecase.FilesUseCases) *Handlers {
 func (h *Handlers) AddFiles(ctx telebot.Context) error {
 	document := ctx.Message().Document
 	user := ctx.Message().Sender.Username
+	fmt.Println(document.MIME)
 	if !strings.Contains(document.MIME, "pdf") {
 		ctx.Send("Не поддерживаемый формат файла.")
-		return telebot.NewError(404, "Bad request: not not supported")
+		return telebot.NewError(404, "Bad request: not supported format")
 	}
 	err := h.useCase.AddFile(user, *document)
 	if err != nil {
@@ -36,6 +39,9 @@ func (h *Handlers) AddFiles(ctx telebot.Context) error {
 }
 
 func (h *Handlers) Merge(ctx telebot.Context, bot *telebot.Bot) error {
+	ctx.Send("Начинаю объединять файлы.")
+
+	start := time.Now()
 	user := ctx.Message().Sender
 	files, err := h.useCase.GetFilesIds(user.Username)
 	if err == telebot.ErrNotFound {
@@ -50,6 +56,7 @@ func (h *Handlers) Merge(ctx telebot.Context, bot *telebot.Bot) error {
 		ctx.Send("Недостаточно файлов.")
 		return nil
 	}
+
 	err = os.Mkdir(user.Username, 0777)
 	if err != nil {
 		ctx.Send("Не могу объединить файлы.")
@@ -58,16 +65,23 @@ func (h *Handlers) Merge(ctx telebot.Context, bot *telebot.Bot) error {
 	defer os.RemoveAll("./" + user.Username + "/")
 	fmt.Println("/" + user.Username)
 	var fileNames []string
+	wg := sync.WaitGroup{}
 	for idx, val := range files {
 		fileName := user.Username + "/" + strconv.Itoa(idx)
 		fileNames = append(fileNames, fileName)
 		document := telebot.File{FileID: val}
-		err = bot.Download(&document, fileName)
-		if err != nil {
-			ctx.Send("Не могу объединить файлы.")
-			return err
-		}
+		wg.Add(1)
+		go func(doc telebot.File, b *telebot.Bot, group *sync.WaitGroup, file string) error {
+			defer group.Done()
+			err = b.Download(&doc, file)
+			if err != nil {
+				ctx.Send("Не могу объединить файлы.")
+				return telebot.NewError(500, "can't download file")
+			}
+			return nil
+		}(document, bot, &wg, fileName)
 	}
+	wg.Wait()
 	resultName, err := h.useCase.MergeFiles(user.Username, fileNames)
 	file := &telebot.Document{FileName: resultName, File: telebot.FromDisk(resultName), MIME: "pdf"}
 	_, err = bot.Send(ctx.Recipient(), file)
@@ -81,6 +95,7 @@ func (h *Handlers) Merge(ctx telebot.Context, bot *telebot.Bot) error {
 		ctx.Send("Не могу объединить файлы.")
 		return telebot.ErrInternal
 	}
+	fmt.Println(time.Since(start))
 	return nil
 }
 
