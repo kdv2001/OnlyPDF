@@ -8,8 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 )
 
 type Handlers struct {
@@ -41,7 +39,6 @@ func (h *Handlers) AddFiles(ctx telebot.Context) error {
 
 func (h *Handlers) Merge(ctx telebot.Context) error {
 	menu := app.ReturnMainMenu()
-	start := time.Now()
 	bot := ctx.Bot()
 	userId := strconv.FormatInt(ctx.Message().Sender.ID, 10)
 	files, err := h.useCase.GetFilesIds(userId)
@@ -59,9 +56,10 @@ func (h *Handlers) Merge(ctx telebot.Context) error {
 		ctx.Send("Недостаточно файлов.", menu)
 		return nil
 	}
+
 	ctx.Send("Начинаю объединять файлы.", menu)
 
-	if _, err := os.Stat(userId); !os.IsNotExist(err) {
+	if _, err = os.Stat(userId); !os.IsNotExist(err) {
 		os.RemoveAll("./" + userId + "/")
 	}
 
@@ -72,25 +70,32 @@ func (h *Handlers) Merge(ctx telebot.Context) error {
 		return telebot.NewError(500, "can't create folder")
 	}
 	defer os.RemoveAll("./" + userId + "/")
-	fmt.Println("/" + userId)
 	var fileNames []string
-	wg := sync.WaitGroup{}
+	errChan := make(chan error)
+	quitChan := make(chan bool)
 	for idx, val := range files {
 		fileName := userId + "/" + strconv.Itoa(idx)
 		fileNames = append(fileNames, fileName)
 		document := telebot.File{FileID: val}
-		wg.Add(1)
-		go func(doc telebot.File, b *telebot.Bot, group *sync.WaitGroup, file string) error {
-			defer group.Done()
-			err = b.Download(&doc, file)
-			if err != nil {
-				fmt.Println(err)
-				return telebot.NewError(500, "can't download file. Err: "+err.Error())
-			}
-			return nil
-		}(document, bot, &wg, fileName)
+		go downloadFile(document, bot, fileName, errChan, quitChan)
 	}
-	wg.Wait()
+	downloadCount := 0
+LOOP:
+	for {
+		select {
+		case err = <-errChan:
+			if err != nil {
+				close(quitChan)
+				ctx.Send("Не могу объединить файлы.")
+				return err
+			} else {
+				downloadCount++
+				if downloadCount == len(files) {
+					break LOOP
+				}
+			}
+		}
+	}
 	resultNameOnDisk, err := h.useCase.MergeFiles(userId, fileNames)
 	nameForFile := resultNameOnDisk
 	if len(ctx.Message().Payload) > 0 {
@@ -109,7 +114,6 @@ func (h *Handlers) Merge(ctx telebot.Context) error {
 		ctx.Send("Не могу объединить файлы.", menu)
 		return telebot.NewError(500, "can't remove folder. Err: "+err.Error())
 	}
-	fmt.Println(time.Since(start))
 	return nil
 }
 
@@ -135,4 +139,18 @@ func (h *Handlers) ClearFiles(ctx telebot.Context) error {
 	}
 	ctx.Send("Текущая очередь очищена.")
 	return nil
+}
+
+func downloadFile(doc telebot.File, b *telebot.Bot, file string, errCh chan error, quitChan chan bool) {
+	err := b.Download(&doc, file)
+	if err != nil {
+		fmt.Println(err)
+		err = telebot.NewError(500, "can't download file. Err: "+err.Error())
+	}
+	select {
+	case errCh <- err:
+		return
+	case <-quitChan:
+		return
+	}
 }
