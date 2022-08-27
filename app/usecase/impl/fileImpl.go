@@ -4,6 +4,7 @@ import (
 	"OnlyPDF/app/repositories"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"gopkg.in/telebot.v3"
+	"strconv"
 	"strings"
 )
 
@@ -27,7 +28,7 @@ func (impl *FileUseCaseImpl) MergeFiles(user string, filesNames []string) (strin
 	resultName := user + "/" + user + "_result.pdf"
 	err := api.MergeCreateFile(filesNames, resultName, nil)
 	if err != nil {
-		return "", telebot.ErrInternal
+		return "", telebot.NewError(500, "can't merge pdf (useCase)")
 	}
 	return resultName, nil
 }
@@ -45,8 +46,9 @@ func (impl *FileUseCaseImpl) GetFilesNames(user string) (string, error) {
 		return "", err
 	}
 	var filesNames []string
-	for _, val := range documents {
-		filesNames = append(filesNames, val.FileName)
+	for idx, val := range documents {
+		newName := strconv.Itoa(idx+1) + ") " + val.FileName
+		filesNames = append(filesNames, newName)
 	}
 	return strings.Join(filesNames, "\n"), nil
 }

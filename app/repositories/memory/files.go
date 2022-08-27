@@ -1,35 +1,44 @@
 package memory
 
-import "gopkg.in/telebot.v3"
+import (
+	"gopkg.in/telebot.v3"
+	"sync"
+)
 
 type FilesMemory struct {
-	dataBase map[string][]telebot.Document
+	dataBase     map[string][]telebot.Document
+	syncDataBase sync.Map
 }
 
 func CreateFilesPostgresInMemory() (*FilesMemory, error) {
-	db := make(map[string][]telebot.Document)
-	return &FilesMemory{dataBase: db}, nil
+	syncDb := sync.Map{}
+	return &FilesMemory{syncDataBase: syncDb}, nil
 }
 
 func (db *FilesMemory) Add(userName string, document telebot.Document) error {
 	sumFileSize := 0
-	for _, val := range db.dataBase[userName] {
-		sumFileSize += val.FileSize
+	fileSliceAny, ok := db.syncDataBase.Load(userName)
+	fileSlice, okConvert := fileSliceAny.([]telebot.Document)
+	if ok || !okConvert {
+		for _, val := range fileSlice {
+			sumFileSize += val.FileSize
+		}
 	}
 	sumFileSize += document.FileSize
 	if sumFileSize >= 50000000 {
 		return telebot.ErrCantUploadFile
 	}
-	db.dataBase[userName] = append(db.dataBase[userName], document)
+	db.syncDataBase.Store(userName, append(fileSlice, document))
 	return nil
 }
 
 func (db *FilesMemory) Get(userName string) ([]telebot.Document, error) {
-	files, ok := db.dataBase[userName]
+	fileSliceAny, ok := db.syncDataBase.Load(userName)
 	if !ok {
 		return []telebot.Document{}, telebot.ErrNotFound
 	}
-	return files, nil
+	fileSlice := fileSliceAny.([]telebot.Document)
+	return fileSlice, nil
 }
 
 func (db *FilesMemory) Update() error {
@@ -37,6 +46,6 @@ func (db *FilesMemory) Update() error {
 }
 
 func (db *FilesMemory) Delete(userName string) error {
-	delete(db.dataBase, userName)
+	db.syncDataBase.Delete(userName)
 	return nil
 }

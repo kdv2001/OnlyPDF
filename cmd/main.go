@@ -11,5 +11,9 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	bot.StartListenAndServ()
+	err = bot.StartListenAndServ()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
