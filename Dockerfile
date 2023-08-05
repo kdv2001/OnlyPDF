@@ -1,13 +1,12 @@
-FROM golang:latest
+FROM golang:latest as builder
 
-WORKDIR /bot
-COPY go.mod ./
-COPY go.sum ./
-
-RUN apt-get update
-
+WORKDIR /build
+ADD . /
 COPY . .
 RUN go mod download
 
-RUN go build -o OnlyBot ./cmd
-ENTRYPOINT ./OnlyBot
+RUN CGO_ENABLED=0 GOOS=linux go build -o OnlyBot ./cmd
+
+FROM alpine
+COPY --from=builder /build/OnlyBot /bin
+ENTRYPOINT ./bin/OnlyBot

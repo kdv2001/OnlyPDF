@@ -7,16 +7,16 @@ import (
 
 type FilesMemory struct {
 	dataBase     map[string][]telebot.Document
-	syncDataBase sync.Map
+	syncDataBase *sync.Map
 }
 
 func CreateFilesPostgresInMemory() (*FilesMemory, error) {
 	syncDb := sync.Map{}
-	return &FilesMemory{syncDataBase: syncDb}, nil
+	return &FilesMemory{syncDataBase: &syncDb}, nil
 }
 
 func (db *FilesMemory) Add(userName string, document telebot.Document) error {
-	sumFileSize := 0
+	var sumFileSize int64
 	fileSliceAny, ok := db.syncDataBase.Load(userName)
 	fileSlice, okConvert := fileSliceAny.([]telebot.Document)
 	if ok || !okConvert {
