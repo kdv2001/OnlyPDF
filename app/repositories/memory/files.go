@@ -1,12 +1,13 @@
 package memory
 
 import (
-	"gopkg.in/telebot.v3"
+	"errors"
 	"sync"
+
+	"gopkg.in/telebot.v3"
 )
 
 type FilesMemory struct {
-	dataBase     map[string][]telebot.Document
 	syncDataBase *sync.Map
 }
 
@@ -38,7 +39,10 @@ func (db *FilesMemory) Get(userName string) ([]telebot.Document, error) {
 		// TODO refactor
 		return []telebot.Document{}, telebot.ErrNotFound
 	}
-	fileSlice := fileSliceAny.([]telebot.Document)
+	fileSlice, ok := fileSliceAny.([]telebot.Document)
+	if !ok {
+		return nil, errors.New("bad type assertion")
+	}
 	return fileSlice, nil
 }
 

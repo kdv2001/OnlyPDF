@@ -2,7 +2,6 @@ package app
 
 import (
 	"gopkg.in/telebot.v3"
-	_ "gopkg.in/telebot.v3"
 )
 
 var (

@@ -3,11 +3,12 @@ package impl
 import (
 	"OnlyPDF/app/repositories"
 	"fmt"
-	"github.com/pdfcpu/pdfcpu/pkg/api"
-	"gopkg.in/telebot.v3"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"gopkg.in/telebot.v3"
 )
 
 type FileDownLoader interface {
@@ -82,7 +83,8 @@ func (impl *FileUseCaseImpl) GetFilesNames(user string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var filesNames []string
+
+	filesNames := make([]string, 0)
 	for idx, val := range documents {
 		newName := strconv.Itoa(idx+1) + ") " + val.FileName
 		filesNames = append(filesNames, newName)
@@ -95,9 +97,11 @@ func (impl *FileUseCaseImpl) GetFilesIds(user string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ids []string
+
+	ids := make([]string, 0)
 	for _, val := range files {
 		ids = append(ids, val.FileID)
 	}
+
 	return ids, nil
 }
