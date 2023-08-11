@@ -1,19 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
 )
 
 func main() {
 	bot, err := CreateOnlyPDFBot()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
+
 	err = bot.StartListenAndServ()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
+
 }

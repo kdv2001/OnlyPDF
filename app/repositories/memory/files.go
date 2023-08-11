@@ -35,6 +35,7 @@ func (db *FilesMemory) Add(userName string, document telebot.Document) error {
 func (db *FilesMemory) Get(userName string) ([]telebot.Document, error) {
 	fileSliceAny, ok := db.syncDataBase.Load(userName)
 	if !ok {
+		// TODO refactor
 		return []telebot.Document{}, telebot.ErrNotFound
 	}
 	fileSlice := fileSliceAny.([]telebot.Document)
