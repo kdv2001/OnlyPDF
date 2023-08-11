@@ -2,18 +2,25 @@ package impl
 
 import (
 	"OnlyPDF/app/repositories"
+	"fmt"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"gopkg.in/telebot.v3"
+	"os"
 	"strconv"
 	"strings"
 )
 
-type FileUseCaseImpl struct {
-	filesRepo repositories.FilesRepositories
+type FileDownLoader interface {
+	DownloadFile(fileId, localFileName string) error
 }
 
-func CreateFileUseCase(repo repositories.FilesRepositories) *FileUseCaseImpl {
-	return &FileUseCaseImpl{filesRepo: repo}
+type FileUseCaseImpl struct {
+	filesRepo repositories.FilesRepositories
+	loader    FileDownLoader
+}
+
+func CreateFileUseCase(repo repositories.FilesRepositories, loader FileDownLoader) *FileUseCaseImpl {
+	return &FileUseCaseImpl{filesRepo: repo, loader: loader}
 }
 
 func (impl *FileUseCaseImpl) AddFile(user string, file telebot.Document) error {
@@ -24,19 +31,49 @@ func (impl *FileUseCaseImpl) AddFile(user string, file telebot.Document) error {
 	return nil
 }
 
-func (impl *FileUseCaseImpl) MergeFiles(user string, filesNames []string) (string, error) {
-	resultName := user + "/" + user + "_result.pdf"
-	err := api.MergeCreateFile(filesNames, resultName, nil)
-	if err != nil {
-		return "", telebot.NewError(500, "can't merge pdf (useCase)")
+func (impl *FileUseCaseImpl) MergeFiles(userId, resultFileName string) (string, error) {
+	if resultFileName == "" {
+		resultFileName = fmt.Sprint(userId, "_result.pdf")
 	}
-	return resultName, nil
+
+	if _, err := os.Stat(userId); !os.IsNotExist(err) {
+		os.RemoveAll("./" + userId)
+	} else {
+		if err = os.Mkdir(userId, 0777); err != nil {
+			return "", err
+		}
+	}
+
+	resultFileName = fmt.Sprint(userId, "/", resultFileName)
+
+	files, err := impl.filesRepo.Get(userId)
+	if err != nil {
+		return "", err
+	}
+
+	downloadFilesNames := make([]string, 0, len(files))
+
+	for _, val := range files {
+		downloadFileName := fmt.Sprint(userId, "/", val.FileName)
+		downloadFilesNames = append(downloadFilesNames, downloadFileName)
+		if err = impl.loader.DownloadFile(val.FileID, downloadFileName); err != nil {
+			return "", err
+		}
+	}
+
+	if err = api.MergeCreateFile(downloadFilesNames, resultFileName, nil); err != nil {
+		return "", fmt.Errorf("error merge file")
+	}
+
+	return resultFileName, nil
 }
 func (impl *FileUseCaseImpl) ClearFiles(user string) error {
-	err := impl.filesRepo.Delete(user)
-	if err != nil {
+	if err := impl.filesRepo.Delete(user); err != nil {
 		return err
 	}
+
+	os.RemoveAll("./" + user)
+
 	return nil
 }
 

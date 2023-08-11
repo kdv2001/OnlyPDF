@@ -4,6 +4,7 @@ import (
 	"OnlyPDF/app"
 	"OnlyPDF/app/handlers"
 	"OnlyPDF/app/repositories/memory"
+	"OnlyPDF/app/repositories/telegramFiles"
 	"OnlyPDF/app/usecase/impl"
 	"fmt"
 	"gopkg.in/telebot.v3"
@@ -20,8 +21,16 @@ func CreateOnlyPDFBot() (OnlyPDFBot, error) {
 	if err != nil {
 		return OnlyPDFBot{}, err
 	}
-	fileUseCase := impl.CreateFileUseCase(repo)
+
+	bot, err := telebot.NewBot(telebot.Settings{Token: os.Getenv("OnlyPDFBotToken"), Poller: &telebot.LongPoller{Timeout: 10 * time.Second}})
+	if err != nil {
+		return OnlyPDFBot{}, err
+	}
+
+	fileLoader := telegramFiles.NewTelegramFiles(bot)
+	fileUseCase := impl.CreateFileUseCase(repo, &fileLoader)
 	handler := handlers.CreateHandlers(fileUseCase)
+
 	return OnlyPDFBot{handler}, nil
 }
 
@@ -41,21 +50,21 @@ func (b *OnlyPDFBot) StartListenAndServ() error {
 		return ctx.Send(app.HelpMsg, app.ReturnMainMenu())
 	})
 	bot.Handle("/help", func(ctx telebot.Context) error {
-		return ctx.Send(app.HelpMsg, app.ReturnMainMenu()) //ctx.Send(helpMsg, menu)
+		return ctx.Send(app.HelpMsg, app.ReturnMainMenu())
 	})
 
 	bot.Handle("/err", func(ctx telebot.Context) error {
-		return telebot.NewError(500, "fdfdfdfd") //ctx.Send(helpMsg, menu)
+		return telebot.NewError(500, "fdfdfdfd")
 	})
 
 	bot.Handle(&app.BtnPrint, b.handler.ShowFiles)
 	bot.Handle("/print", b.handler.ShowFiles)
 
 	bot.Handle(&app.BtnClear, b.handler.ClearFiles)
-	bot.Handle("/clear", b.handler.ClearFiles)
+	bot.Handle("/clear", b.handler.ClearFiles, handlers.StateMiddleware)
 
 	bot.Handle(&app.BtnMerge, b.handler.Merge)
-	bot.Handle("/merge", b.handler.Merge)
+	bot.Handle("/merge", b.handler.MergeCommand)
 
 	bot.Start()
 	return nil
