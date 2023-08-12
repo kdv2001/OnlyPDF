@@ -1,12 +1,15 @@
 package memory
 
 import (
-	"gopkg.in/telebot.v3"
+	"errors"
 	"sync"
+
+	"gopkg.in/telebot.v3"
 )
 
+const maxFileSize = 50000000
+
 type FilesMemory struct {
-	dataBase     map[string][]telebot.Document
 	syncDataBase *sync.Map
 }
 
@@ -25,7 +28,7 @@ func (db *FilesMemory) Add(userName string, document telebot.Document) error {
 		}
 	}
 	sumFileSize += document.FileSize
-	if sumFileSize >= 50000000 {
+	if sumFileSize >= maxFileSize {
 		return telebot.ErrCantUploadFile
 	}
 	db.syncDataBase.Store(userName, append(fileSlice, document))
@@ -38,7 +41,10 @@ func (db *FilesMemory) Get(userName string) ([]telebot.Document, error) {
 		// TODO refactor
 		return []telebot.Document{}, telebot.ErrNotFound
 	}
-	fileSlice := fileSliceAny.([]telebot.Document)
+	fileSlice, ok := fileSliceAny.([]telebot.Document)
+	if !ok {
+		return nil, errors.New("bad type assertion")
+	}
 	return fileSlice, nil
 }
 

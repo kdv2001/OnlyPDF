@@ -3,12 +3,15 @@ package impl
 import (
 	"OnlyPDF/app/repositories"
 	"fmt"
-	"github.com/pdfcpu/pdfcpu/pkg/api"
-	"gopkg.in/telebot.v3"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"gopkg.in/telebot.v3"
 )
+
+const dirPermission = 0777
 
 type FileDownLoader interface {
 	DownloadFile(fileId, localFileName string) error
@@ -39,7 +42,7 @@ func (impl *FileUseCaseImpl) MergeFiles(userId, resultFileName string) (string, 
 	if _, err := os.Stat(userId); !os.IsNotExist(err) {
 		os.RemoveAll("./" + userId)
 	} else {
-		if err = os.Mkdir(userId, 0777); err != nil {
+		if err = os.Mkdir(userId, dirPermission); err != nil {
 			return "", err
 		}
 	}
@@ -82,7 +85,8 @@ func (impl *FileUseCaseImpl) GetFilesNames(user string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var filesNames []string
+
+	filesNames := make([]string, 0)
 	for idx, val := range documents {
 		newName := strconv.Itoa(idx+1) + ") " + val.FileName
 		filesNames = append(filesNames, newName)
@@ -95,9 +99,11 @@ func (impl *FileUseCaseImpl) GetFilesIds(user string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ids []string
+
+	ids := make([]string, 0)
 	for _, val := range files {
 		ids = append(ids, val.FileID)
 	}
+
 	return ids, nil
 }

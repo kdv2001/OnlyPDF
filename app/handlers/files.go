@@ -3,9 +3,11 @@ package handlers
 import (
 	"OnlyPDF/app"
 	"OnlyPDF/app/usecase"
-	"gopkg.in/telebot.v3"
+	"net/http"
 	"strconv"
 	"strings"
+
+	"gopkg.in/telebot.v3"
 )
 
 type Handlers struct {
@@ -23,7 +25,7 @@ func (h *Handlers) AddFiles(ctx telebot.Context) error {
 	userId := strconv.FormatInt(ctx.Message().Sender.ID, 10)
 	if !strings.Contains(document.MIME, "pdf") {
 		ctx.Send("Не поддерживаемый формат файла.", menu)
-		return telebot.NewError(404, "Bad request: not supported format")
+		return telebot.NewError(http.StatusNotFound, "Bad request: not supported format")
 	}
 
 	if err := h.useCase.AddFile(userId, *document); err != nil {
@@ -40,6 +42,11 @@ func (h *Handlers) Merge(ctx telebot.Context) error {
 	userId := strconv.FormatInt(ctx.Message().Sender.ID, 10)
 
 	resultNameOnDisk, err := h.useCase.MergeFiles(userId, "")
+	if err != nil {
+		ctx.Send("Не могу объединить файлы.", menu)
+		return telebot.NewError(http.StatusInternalServerError, "Can't send file. Err: "+err.Error())
+	}
+
 	if len(ctx.Message().Payload) > 0 {
 		resultNameOnDisk = ctx.Message().Payload + ".pdf"
 	}
@@ -47,12 +54,12 @@ func (h *Handlers) Merge(ctx telebot.Context) error {
 	file := &telebot.Document{FileName: resultNameOnDisk, File: telebot.FromDisk(resultNameOnDisk), MIME: "pdf"}
 	if _, err = bot.Send(ctx.Recipient(), file); err != nil {
 		ctx.Send("Не могу объединить файлы.", menu)
-		return telebot.NewError(500, "Can't send file. Err: "+err.Error())
+		return telebot.NewError(http.StatusInternalServerError, "Can't send file. Err: "+err.Error())
 	}
 
 	if err = h.useCase.ClearFiles(userId); err != nil {
 		ctx.Send("Не могу объединить файлы.", menu)
-		return telebot.NewError(500, "can't remove folder. Err: "+err.Error())
+		return telebot.NewError(http.StatusInternalServerError, "can't remove folder. Err: "+err.Error())
 	}
 
 	return nil
@@ -72,7 +79,7 @@ func (h *Handlers) MergeCommand(ctx telebot.Context) error {
 	if err != nil {
 		ctx.Send("Не могу объединить файлы.", menu)
 
-		return telebot.NewError(500, "Can't send file. Err: "+err.Error())
+		return telebot.NewError(http.StatusInternalServerError, "Can't send file. Err: "+err.Error())
 	}
 
 	file := &telebot.Document{FileName: resultFileName, File: telebot.FromDisk(resultNameOnDisk), MIME: "pdf"}
@@ -81,12 +88,12 @@ func (h *Handlers) MergeCommand(ctx telebot.Context) error {
 	if err != nil {
 		ctx.Send("Не могу объединить файлы.", menu)
 
-		return telebot.NewError(500, "Can't send file. Err: "+err.Error())
+		return telebot.NewError(http.StatusInternalServerError, "Can't send file. Err: "+err.Error())
 	}
 
 	if err = h.useCase.ClearFiles(userId); err != nil {
 		ctx.Send("Не могу объединить файлы.", menu)
-		return telebot.NewError(500, "can't remove folder. Err: "+err.Error())
+		return telebot.NewError(http.StatusInternalServerError, "can't remove folder. Err: "+err.Error())
 	}
 
 	return nil

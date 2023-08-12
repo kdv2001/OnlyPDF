@@ -7,14 +7,18 @@ import (
 	"OnlyPDF/app/repositories/telegramFiles"
 	"OnlyPDF/app/usecase/impl"
 	"fmt"
-	"gopkg.in/telebot.v3"
+	"net/http"
 	"os"
 	"time"
+
+	"gopkg.in/telebot.v3"
 )
 
 type OnlyPDFBot struct {
 	handler *handlers.Handlers
 }
+
+const pollTime = 10 * time.Second
 
 func CreateOnlyPDFBot() (OnlyPDFBot, error) {
 	repo, err := memory.CreateFilesPostgresInMemory()
@@ -22,7 +26,7 @@ func CreateOnlyPDFBot() (OnlyPDFBot, error) {
 		return OnlyPDFBot{}, err
 	}
 
-	bot, err := telebot.NewBot(telebot.Settings{Token: os.Getenv("OnlyPDFBotToken"), Poller: &telebot.LongPoller{Timeout: 10 * time.Second}})
+	bot, err := telebot.NewBot(telebot.Settings{Token: os.Getenv("OnlyPDFBotToken")})
 	if err != nil {
 		return OnlyPDFBot{}, err
 	}
@@ -35,7 +39,8 @@ func CreateOnlyPDFBot() (OnlyPDFBot, error) {
 }
 
 func (b *OnlyPDFBot) StartListenAndServ() error {
-	bot, err := telebot.NewBot(telebot.Settings{Token: os.Getenv("OnlyPDFBotToken"), Poller: &telebot.LongPoller{Timeout: 10 * time.Second}})
+	bot, err := telebot.NewBot(telebot.Settings{Token: os.Getenv("OnlyPDFBotToken"),
+		Poller: &telebot.LongPoller{Timeout: pollTime}})
 	if err != nil {
 		fmt.Println(err.Error())
 		return err
@@ -54,7 +59,7 @@ func (b *OnlyPDFBot) StartListenAndServ() error {
 	})
 
 	bot.Handle("/err", func(ctx telebot.Context) error {
-		return telebot.NewError(500, "fdfdfdfd")
+		return telebot.NewError(http.StatusInternalServerError, "fdfdfdfd")
 	})
 
 	bot.Handle(&app.BtnPrint, b.handler.ShowFiles)
