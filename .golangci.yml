@@ -121,7 +121,6 @@ linters:
     - tagliatelle
     - gochecknoglobals
     - godot
-    - nosnakecase
     - ifshort
     - wsl
   fast: true

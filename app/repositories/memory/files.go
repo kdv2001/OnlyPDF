@@ -7,6 +7,8 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
+const maxFileSize = 50000000
+
 type FilesMemory struct {
 	syncDataBase *sync.Map
 }
@@ -26,7 +28,7 @@ func (db *FilesMemory) Add(userName string, document telebot.Document) error {
 		}
 	}
 	sumFileSize += document.FileSize
-	if sumFileSize >= 50000000 {
+	if sumFileSize >= maxFileSize {
 		return telebot.ErrCantUploadFile
 	}
 	db.syncDataBase.Store(userName, append(fileSlice, document))

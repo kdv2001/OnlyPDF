@@ -11,6 +11,8 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
+const dirPermission = 0777
+
 type FileDownLoader interface {
 	DownloadFile(fileId, localFileName string) error
 }
@@ -40,7 +42,7 @@ func (impl *FileUseCaseImpl) MergeFiles(userId, resultFileName string) (string, 
 	if _, err := os.Stat(userId); !os.IsNotExist(err) {
 		os.RemoveAll("./" + userId)
 	} else {
-		if err = os.Mkdir(userId, 0777); err != nil {
+		if err = os.Mkdir(userId, dirPermission); err != nil {
 			return "", err
 		}
 	}
