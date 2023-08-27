@@ -1,6 +1,7 @@
 package telegramFiles
 
 import (
+	"fmt"
 	"gopkg.in/telebot.v3"
 )
 
@@ -17,6 +18,7 @@ func NewTelegramFiles(bot *telebot.Bot) TelegramFiles {
 func (t *TelegramFiles) DownloadFile(fileId, localFileName string) error {
 	file := telebot.File{FileID: fileId}
 	if err := t.bot.Download(&file, localFileName); err != nil {
+		fmt.Println("cant download")
 		return err
 	}
 

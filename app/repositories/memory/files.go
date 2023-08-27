@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"OnlyPDF/app/models"
 	"errors"
 	"sync"
 
@@ -18,33 +19,39 @@ func CreateFilesPostgresInMemory() (*FilesMemory, error) {
 	return &FilesMemory{syncDataBase: &syncDb}, nil
 }
 
-func (db *FilesMemory) Add(userName string, document telebot.Document) error {
+func (db *FilesMemory) Add(userName string, document models.File) error {
 	var sumFileSize int64
 	fileSliceAny, ok := db.syncDataBase.Load(userName)
-	fileSlice, okConvert := fileSliceAny.([]telebot.Document)
+
+	fileSlice, okConvert := fileSliceAny.([]models.File)
 	if ok || !okConvert {
 		for _, val := range fileSlice {
-			sumFileSize += val.FileSize
+			sumFileSize += val.Size
 		}
 	}
-	sumFileSize += document.FileSize
+
+	sumFileSize += document.Size
 	if sumFileSize >= maxFileSize {
 		return telebot.ErrCantUploadFile
 	}
+
 	db.syncDataBase.Store(userName, append(fileSlice, document))
+
 	return nil
 }
 
-func (db *FilesMemory) Get(userName string) ([]telebot.Document, error) {
+func (db *FilesMemory) Get(userName string) ([]models.File, error) {
 	fileSliceAny, ok := db.syncDataBase.Load(userName)
 	if !ok {
 		// TODO refactor
-		return []telebot.Document{}, telebot.ErrNotFound
+		return nil, telebot.ErrNotFound
 	}
-	fileSlice, ok := fileSliceAny.([]telebot.Document)
+
+	fileSlice, ok := fileSliceAny.([]models.File)
 	if !ok {
 		return nil, errors.New("bad type assertion")
 	}
+
 	return fileSlice, nil
 }
 
@@ -54,5 +61,6 @@ func (db *FilesMemory) Update() error {
 
 func (db *FilesMemory) Delete(userName string) error {
 	db.syncDataBase.Delete(userName)
+
 	return nil
 }

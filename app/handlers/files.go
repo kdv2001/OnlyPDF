@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"OnlyPDF/app"
+	"OnlyPDF/app/models"
 	"OnlyPDF/app/usecase"
+	"context"
+	"fmt"
+	"gopkg.in/telebot.v3"
 	"net/http"
 	"strconv"
-	"strings"
-
-	"gopkg.in/telebot.v3"
 )
 
 type Handlers struct {
@@ -18,21 +19,48 @@ func CreateHandlers(useCase usecase.FilesUseCases) *Handlers {
 	return &Handlers{useCase: useCase}
 }
 
-func (h *Handlers) AddFiles(ctx telebot.Context) error {
+func (h *Handlers) AddFile(ctx telebot.Context) error {
 	menu := app.ReturnMainMenu()
 	document := ctx.Message().Document
 
 	userId := strconv.FormatInt(ctx.Message().Sender.ID, 10)
-	if !strings.Contains(document.MIME, "pdf") {
-		ctx.Send("Не поддерживаемый формат файла.", menu)
-		return telebot.NewError(http.StatusNotFound, "Bad request: not supported format")
-	}
 
-	if err := h.useCase.AddFile(userId, *document); err != nil {
+	f := models.File{
+		Id:   document.FileID,
+		Name: document.FileName,
+		Size: document.FileSize,
+	}
+	if err := h.useCase.AddFile(userId, f); err != nil {
 		ctx.Send("Не удалось добавить файл.", menu)
 		return err
 	}
+
 	ctx.Send("Файл добавлен.", menu)
+
+	return nil
+}
+
+func (h *Handlers) AddPhoto(ctx telebot.Context) error {
+	menu := app.ReturnMainMenu()
+	document := ctx.Message().Photo
+
+	userId := strconv.FormatInt(ctx.Message().Sender.ID, 10)
+
+	fmt.Println(document)
+
+	f := models.File{
+		Id:   document.FileID,
+		Name: fmt.Sprint(document.UniqueID, ".png"),
+		Size: document.FileSize,
+	}
+	if err := h.useCase.AddFile(userId, f); err != nil {
+		ctx.Send("Не удалось добавить файл.", menu)
+
+		return err
+	}
+
+	ctx.Send("Файл добавлен.", menu)
+
 	return nil
 }
 
@@ -41,7 +69,7 @@ func (h *Handlers) Merge(ctx telebot.Context) error {
 	bot := ctx.Bot()
 	userId := strconv.FormatInt(ctx.Message().Sender.ID, 10)
 
-	resultNameOnDisk, err := h.useCase.MergeFiles(userId, "")
+	resultNameOnDisk, err := h.useCase.ConvertFiles(context.TODO(), userId, "", true)
 	if err != nil {
 		ctx.Send("Не могу объединить файлы.", menu)
 		return telebot.NewError(http.StatusInternalServerError, "Can't send file. Err: "+err.Error())
@@ -65,6 +93,35 @@ func (h *Handlers) Merge(ctx telebot.Context) error {
 	return nil
 }
 
+func (h *Handlers) ConvertCommand(ctx telebot.Context) error {
+	menu := app.ReturnMainMenu()
+	bot := ctx.Bot()
+	userId := strconv.FormatInt(ctx.Message().Sender.ID, 10)
+
+	resultNameOnDisk, err := h.useCase.ConvertFiles(context.TODO(), userId, "", false)
+	if err != nil {
+		ctx.Send("Не могу коннвертировать файлы.", menu)
+		return telebot.NewError(http.StatusInternalServerError, "Can't send file. Err: "+err.Error())
+	}
+
+	if len(ctx.Message().Payload) > 0 {
+		resultNameOnDisk = ctx.Message().Payload + ".zip"
+	}
+
+	file := &telebot.Document{FileName: resultNameOnDisk, File: telebot.FromDisk(resultNameOnDisk), MIME: "zip"}
+	if _, err = bot.Send(ctx.Recipient(), file); err != nil {
+		ctx.Send("Не могу коннвертировать файлы.", menu)
+		return telebot.NewError(http.StatusInternalServerError, "Can't send file. Err: "+err.Error())
+	}
+
+	if err = h.useCase.ClearFiles(userId); err != nil {
+		ctx.Send("Не могу коннвертировать файлы.", menu)
+		return telebot.NewError(http.StatusInternalServerError, "can't remove folder. Err: "+err.Error())
+	}
+
+	return nil
+}
+
 func (h *Handlers) MergeCommand(ctx telebot.Context) error {
 	menu := app.ReturnMainMenu()
 	bot := ctx.Bot()
@@ -75,7 +132,7 @@ func (h *Handlers) MergeCommand(ctx telebot.Context) error {
 		resultFileName = ctx.Args()[0]
 	}
 
-	resultNameOnDisk, err := h.useCase.MergeFiles(userId, resultFileName)
+	resultNameOnDisk, err := h.useCase.ConvertFiles(context.TODO(), userId, resultFileName, true)
 	if err != nil {
 		ctx.Send("Не могу объединить файлы.", menu)
 

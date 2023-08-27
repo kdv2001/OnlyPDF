@@ -1,10 +1,12 @@
 package repositories
 
-import "gopkg.in/telebot.v3"
+import (
+	"OnlyPDF/app/models"
+)
 
 type FilesRepositories interface {
-	Add(userName string, document telebot.Document) error
+	Add(userName string, document models.File) error
 	Update() error
-	Get(userId string) ([]telebot.Document, error)
+	Get(userId string) ([]models.File, error)
 	Delete(userName string) error
 }

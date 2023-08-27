@@ -1,6 +1,6 @@
 module OnlyPDF
 
-go 1.21
+go 1.20
 
 require (
 	github.com/pdfcpu/pdfcpu v0.3.13

@@ -1,10 +1,13 @@
 package usecase
 
-import "gopkg.in/telebot.v3"
+import (
+	"OnlyPDF/app/models"
+	"context"
+)
 
 type FilesUseCases interface {
-	AddFile(user string, file telebot.Document) error
-	MergeFiles(userId, resultFileName string) (string, error)
+	AddFile(user string, file models.File) error
+	ConvertFiles(ctx context.Context, userId, resultFileName string, needMerge bool) (string, error)
 	ClearFiles(user string) error
 	GetFilesNames(user string) (string, error)
 	GetFilesIds(user string) ([]string, error)

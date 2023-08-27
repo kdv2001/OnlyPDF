@@ -3,6 +3,7 @@ package main
 import (
 	"OnlyPDF/app"
 	"OnlyPDF/app/handlers"
+	"OnlyPDF/app/repositories/gotemberg"
 	"OnlyPDF/app/repositories/memory"
 	"OnlyPDF/app/repositories/telegramFiles"
 	"OnlyPDF/app/usecase/impl"
@@ -31,8 +32,9 @@ func CreateOnlyPDFBot() (OnlyPDFBot, error) {
 		return OnlyPDFBot{}, err
 	}
 
+	g := gotemberg.NewRepo(http.DefaultClient, os.Getenv("GotenbergURL"))
 	fileLoader := telegramFiles.NewTelegramFiles(bot)
-	fileUseCase := impl.CreateFileUseCase(repo, &fileLoader)
+	fileUseCase := impl.CreateFileUseCase(repo, &fileLoader, g)
 	handler := handlers.CreateHandlers(fileUseCase)
 
 	return OnlyPDFBot{handler}, nil
@@ -46,7 +48,8 @@ func (b *OnlyPDFBot) StartListenAndServ() error {
 		return err
 	}
 
-	bot.Handle(telebot.OnDocument, b.handler.AddFiles)
+	bot.Handle(telebot.OnMedia, b.handler.AddPhoto)
+	bot.Handle(telebot.OnDocument, b.handler.AddFile)
 	bot.Handle("/start", func(ctx telebot.Context) error {
 		return ctx.Send(app.DefaultMsg, app.ReturnMainMenu())
 	})
@@ -70,6 +73,9 @@ func (b *OnlyPDFBot) StartListenAndServ() error {
 
 	bot.Handle(&app.BtnMerge, b.handler.Merge)
 	bot.Handle("/merge", b.handler.MergeCommand)
+
+	bot.Handle(&app.BtnConvert, b.handler.ConvertCommand)
+	bot.Handle("/convert", b.handler.ConvertCommand)
 
 	bot.Start()
 	return nil

@@ -7,17 +7,17 @@ import (
 var (
 	menu = &telebot.ReplyMarkup{ResizeKeyboard: true}
 
-	BtnPrint = menu.Text("🖨 Отобразить")
-	BtnMerge = menu.Text("💾 Объединить")
-	BtnClear = menu.Text("🧫 Очистить")
-	BtnHelp  = menu.Text("🆘 Помощь")
+	BtnPrint   = menu.Text("🖨 Отобразить")
+	BtnMerge   = menu.Text("💾 Объединить")
+	BtnClear   = menu.Text("🧫 Очистить")
+	BtnHelp    = menu.Text("🆘 Помощь")
+	BtnConvert = menu.Text("⚙ Конвертировать")
 )
 
 func ReturnMainMenu() *telebot.ReplyMarkup {
 	menu.Reply(
-		menu.Row(BtnPrint),
-		menu.Row(BtnMerge),
-		menu.Row(BtnClear),
+		menu.Row(BtnPrint, BtnMerge),
+		menu.Row(BtnClear, BtnConvert),
 		menu.Row(BtnHelp),
 	)
 	return menu
